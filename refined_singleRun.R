@@ -15,72 +15,15 @@ library(purrr)
 library(readxl)
 library(tibble)
 library(xlsx)
-
+library(purrr)
+library(dplyr)
 rm(list = ls())
+source("create_conditions.R")
 
-conditions<- list(
-  Full_CD8_V7 = 57:60,
-  dualCAR_CD8_V7 = 37:40,
-  CD3only_CD8_V7 = 1:4,
-  Costimonly_CD8_V7 = 25:28,
-  fulldel_CD8_V7 = 81:84,
-  Full_CD8_killing_V7 = 69:72,
-  Full_CD8_killing = 65:68,
-  Full_CD4_V7 = 13:16,
-  
-  Full_CD8_monomer = 73:76,
-  dualCAR_CD8_monomer = 49:52,
-  CD3only_CD8_monomer = 9:12,
-  Costimonly_CD8_monomer = 33:36,
-  fulldel_CD8_monomer = 88:92,
-  Full_CD4_monomer = 21:24,
-  
-  
-  Full_CD8_Mb_wtIL2 = 53:56,
-  dualCAR_CD8_V9_Mb = 41:44,
-  Full_CD8_wtIL2 = 77:80,
-  
-  Full_CD8_control = 61:64,
-  dualCAR_CD8_control = 45:48,
-  CD3only_CD8_control = 5:8,
-  Costimonly_CD8_control = 29:32,
-  fulldel_CD8_control = 85:88,
-  Full_CD4_control = 17:20
-)
-batches<- list(
-  Full_CD8_V7="1",
-  dualCAR_CD8_V7 = "2",
-  CD3only_CD8_V7 = "2",
-  Costimonly_CD8_V7 = "2",
-  fulldel_CD8_V7 = "1",
-  Full_CD8_killing_V7 = "1",
-  Full_CD8_killing = "1",
-  Full_CD4_V7 = "1",
-  
-  Full_CD8_monomer = "1",
-  dualCAR_CD8_monomer = "1",
-  CD3only_CD8_monomer = "2",
-  Costimonly_CD8_monomer = "2",
-  fulldel_CD8_monomer = "2",
-  Full_CD4_monomer = "1",
-  
-  Full_CD8_Mb_wtIL2 = "1",
-  dualCAR_CD8_V9_Mb = "2",
-  Full_CD8_wtIL2 = "1",
-  
-  Full_CD8_control = "1",
-  dualCAR_CD8_control = "2",
-  CD3only_CD8_control = "2",
-  Costimonly_CD8_control = "1",
-  fulldel_CD8_control = "2",
-  Full_CD4_control = "1"
-  
-)
-
-
-setwd("/Volumes/My_Passport/paper2_result/new_pipeline/")
+# setwd("/Volumes/My_Passport/paper2_result/new_pipeline/")
 getwd()
-data<- read.table("/Volumes/My_Passport/paper2_result/new_pipeline/countMatrix_all.txt")
+#import data
+data<- read.table("data/countMatrix_all.txt", header = T)
 geneIDs<- data$Geneid
 gene_IDs <- read.table("/Volumes/My_Passport/paper2_result/new_pipeline/Ensemble_IDs.txt", header = T , fill = T)
 gene_IDs[gene_IDs==""]<-NA
@@ -88,18 +31,14 @@ colnames(gene_IDs) <- c("ensembl_gene_id", "hgnc_symbol")
 
 data$Geneid<- NULL
 
+conditions<-creat_conditions(data)
+
 rownames(data)<- geneIDs
 colnames(data)<- unlist(map(strsplit(colnames(data), split = "_CKD"), 1))
 data<- data[complete.cases(data),]
 geneIDs<- rownames(data)
 
-# library('biomaRt')
-# mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
-# genes <- rownames(data)
-# 
-# gene_IDs <- getBM(filters= "ensembl_gene_id", attributes= c("ensembl_gene_id","hgnc_symbol"),
-#                   values = genes, mart= mart)
-
+# convert ensemble IDs to gene names
 data <- data %>%
   rownames_to_column(var = "ensembl_gene_id")
 data <- data %>%
@@ -107,7 +46,8 @@ data <- data %>%
 data$hgnc_symbol[data$hgnc_symbol==""]<-NA
 data<- data[complete.cases(data), ]
 
-ind.dup<- which(duplicated(data$hgnc_symbol))
+# remove repeated genes
+ind.dup<- which(!duplicated(data$hgnc_symbol) & duplicated(data$hgnc_symbol, fromLast=T))
 if (length(ind.dup)>0)
 {
   data<- data[-ind.dup,]
