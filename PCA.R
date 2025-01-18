@@ -113,21 +113,39 @@ write.table(normalized_counts , file.path(dir_name , paste0("normalized_counts.t
             , sep="\t" ,quote = F, row.names = T)
 rld <- rlog(dds, blind=TRUE)# regularized log transformed
 log_counts<- assay(rld)
-pca_result <- prcomp(log_counts, scale. = F)
-pca_data<- pca_result$rotation %>% as.data.frame()%>%dplyr::select(PC1 , PC2)
-pca_data$Group<- substr(rownames(pca_data), 1, nchar(rownames(pca_data))-2 )
+pca_result <- prcomp(t(log_counts), scale. = F)
+pca_data <- as.data.frame(pca_result$x)
+pca_data$Group <- colData(rld)$sample_type
+# pca_data<- pca_result$rotation %>% as.data.frame()%>%dplyr::select(PC1 , PC2)
+# pca_data$Group<- substr(rownames(pca_data), 1, nchar(rownames(pca_data))-2 )
 write.table(log_counts , file.path(dir_name , paste0("log_norm_counts.txt")) ,
             sep = "\t", quote = F , row.names = T) 
-pca_data <- prcomp(t(assay(rld)))
-loadings <- pca_data$rotation
+pca_log <- prcomp(t(assay(rld)))
+loadings <- pca_log$rotation
 top20_genes<- rownames(loadings[order(abs(loadings[, "PC1"]) , decreasing = T),])[1:20]
 # top20_gene_symbols <- gene_symbols %>%
 #   filter(ensemble_ID %in% top20_genes) %>%
 #   pull(symbol)
 write.table(top20_genes, file.path(dir_name, paste0("top20_PC1_",dir_name, ".txt"))
             , col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+
+
+sdev<- pca_result$sdev
+variance_explained <- sdev^2
+proportion_variance_explained <- 100*variance_explained / sum(variance_explained)
+proportion_variance_explained<- proportion_variance_explained%>%round(digits = 2)%>%t()%>%as.data.frame()
+names(proportion_variance_explained)<- paste0("PC", 1:length(proportion_variance_explained))
+
+
 pdf(file.path(dir_name, paste0("PCA_",dir_name, ".pdf")), height = 5, width = 5)
 print(plotPCA(rld, intgroup="sample_type" , pcsToUse=1:2 , ntop= 10000) +
         ggtitle(dir_name) )
  # ggplot(pca_data, aes(x = PC1, y = PC2,colour = Group)) + geom_point()
 dev.off()
+
+
+ggplot(pca_data, aes(PC1, PC2))+ geom_point(aes(colour = Group, shape = Group) , size = 3)+
+  xlab(paste0("PC1 ", proportion_variance_explained$PC1, "%"))+
+  ylab(paste0("PC2 ", proportion_variance_explained$PC2 , "%"))
+
+
