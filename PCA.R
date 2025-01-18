@@ -39,7 +39,7 @@ colnames(data)<- unlist(map(strsplit(colnames(data), split = "_CKD"), 1))
 data<- data[complete.cases(data),]
 geneIDs<- rownames(data)
 
-# convert ensemble IDs to gene names
+#convert ensemble IDs to gene names
 data <- data %>%
   rownames_to_column(var = "ensembl_gene_id")
 data <- data %>%
@@ -63,26 +63,26 @@ data$hgnc_symbol<-NULL
 
 
 
-group1<- "Full_CD8_V7"
-group2<- "Costimonly_CD8_V7"
-group3<- "CD3only_CD8_V7"
-group4<- "fulldel_CD8_V7"
+group1<- "dualCAR_CD8_monomer"
+group2<- "Full_CD8_Mb_wtIL2"
+group3<- "Full_CD8_control"
+# group4<- "fulldel_CD8_V7"
 Trx_group<-c(group1)
 
-group5<- "Full_CD8_control"
-group6<- "Costimonly_CD8_control"
-group7<- "CD3only_CD8_control"
-group8<- "fulldel_CD8_control" 
-Ctrl_group<- c(group5, group6, group7, group8)
+group5<- "dualCAR_CD8_control"
+group6<- "dualCAR_CD8_V9_Mb"
+group7<- "dualCAR_CD8_V7"
+group8<- "Full_CD4_control"
+Ctrl_group<- c(group5, group6, group7)
 
 
 data_ind<- unlist(conditions[c(Trx_group , Ctrl_group)])
 # filter data
 data_files<- data[,data_ind]
 colnames(data_files)
-
+data_files$dualCAR_CD8_V7_2<- NULL
 # make direction
-dir_name <- "Constructs_PCA"#change back
+dir_name <- "dualCAR"#change back
 dir.create(dir_name, showWarnings = FALSE)
 
 
@@ -113,9 +113,21 @@ write.table(normalized_counts , file.path(dir_name , paste0("normalized_counts.t
             , sep="\t" ,quote = F, row.names = T)
 rld <- rlog(dds, blind=TRUE)# regularized log transformed
 log_counts<- assay(rld)
+pca_result <- prcomp(log_counts, scale. = F)
+pca_data<- pca_result$rotation %>% as.data.frame()%>%dplyr::select(PC1 , PC2)
+pca_data$Group<- substr(rownames(pca_data), 1, nchar(rownames(pca_data))-2 )
 write.table(log_counts , file.path(dir_name , paste0("log_norm_counts.txt")) ,
             sep = "\t", quote = F , row.names = T) 
-pdf(file.path(dir_name, paste0("PCA2_",dir_name, ".pdf")), height = 5, width = 5)
-print(plotPCA(rld, intgroup="sample_type" , pcsToUse=1:2 , ntop= 500) +
-        ggtitle("controls comparison") )
+pca_data <- prcomp(t(assay(rld)))
+loadings <- pca_data$rotation
+top20_genes<- rownames(loadings[order(abs(loadings[, "PC1"]) , decreasing = T),])[1:20]
+# top20_gene_symbols <- gene_symbols %>%
+#   filter(ensemble_ID %in% top20_genes) %>%
+#   pull(symbol)
+write.table(top20_genes, file.path(dir_name, paste0("top20_PC1_",dir_name, ".txt"))
+            , col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+pdf(file.path(dir_name, paste0("PCA_",dir_name, ".pdf")), height = 5, width = 5)
+print(plotPCA(rld, intgroup="sample_type" , pcsToUse=1:2 , ntop= 10000) +
+        ggtitle(dir_name) )
+ # ggplot(pca_data, aes(x = PC1, y = PC2,colour = Group)) + geom_point()
 dev.off()
