@@ -24,8 +24,13 @@ source("create_conditions.R")
 getwd()
 #import data
 data<- read.table("data/countMatrix_all.txt", header = T)
+data$Chr<-NULL
+data$Start<-NULL
+data$Strand<- NULL
+data$End<- NULL
+data$Length<-NULL
 geneIDs<- data$Geneid
-gene_IDs <- read.table("/Volumes/My_Passport/paper2_result/new_pipeline/Ensemble_IDs.txt", header = T , fill = T)
+gene_IDs <- read.table("data/Ensemble_IDs.txt", header = T , fill = T)
 gene_IDs[gene_IDs==""]<-NA
 colnames(gene_IDs) <- c("ensembl_gene_id", "hgnc_symbol")
 
